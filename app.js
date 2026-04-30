@@ -81,8 +81,9 @@ window.mudarAba = (aba) => {
     if (aba === 'financeiro') renderizarFinanceiroSaripan(); 
 };
 
-function mostrarToast() {
+function mostrarToast(mensagem = "✅ Operação realizada com sucesso!") {
     const toast = document.getElementById("toast");
+    toast.innerText = mensagem;
     toast.className = "show";
     setTimeout(() => toast.className = toast.className.replace("show", ""), 2900);
 }
@@ -188,7 +189,13 @@ function renderizarApontamentosSaripan() {
         }).join('');
         const div = document.createElement('div');
         div.className = 'accordion-group';
-        div.innerHTML = `<div class="accordion-header ${actStr}" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');"><div><div class="accordion-title">${g.quinzena}ª Quinzena - ${MESES[g.mes]} ${g.ano}</div><div class="accordion-meta">${g.itens.length} registros</div></div><div class="accordion-actions"><button class="btn-icon" style="color:#1976d2;" onclick="event.stopPropagation(); window.gerarPDF('${chave}')">📄</button><button class="btn-icon" style="color:#d32f2f;" onclick="event.stopPropagation(); window.excluirQuinzena('${chave}')">🗑️</button></div></div><div class="accordion-content ${openStr}"><table><thead><tr><th>Data</th><th>Tipo</th><th>Detalhes</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>${htmlRows}<tr class="total-row"><td colspan="3">Total</td><td class="td-valor esconder-valor">${totalFormatado}</td><td></td></tr></tbody></table></div>`;
+        
+        // NOVO BOTÃO DE COMPARTILHAMENTO WHATSAPP
+        const btnZap = `<button class="btn-icon" style="color:#25D366; font-size: 20px; padding: 5px; margin-right: 5px;" onclick="event.stopPropagation(); window.compartilharRelatorio('${chave}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>
+        </button>`;
+
+        div.innerHTML = `<div class="accordion-header ${actStr}" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');"><div><div class="accordion-title">${g.quinzena}ª Quinzena - ${MESES[g.mes]} ${g.ano}</div><div class="accordion-meta">${g.itens.length} registros</div></div><div class="accordion-actions" style="display:flex; align-items:center;">${btnZap}<button class="btn-icon" style="color:#d32f2f; font-size:20px; padding:5px;" onclick="event.stopPropagation(); window.excluirQuinzena('${chave}')">🗑️</button></div></div><div class="accordion-content ${openStr}"><table><thead><tr><th>Data</th><th>Tipo</th><th>Detalhes</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>${htmlRows}<tr class="total-row"><td colspan="3">Total</td><td class="td-valor esconder-valor">${totalFormatado}</td><td></td></tr></tbody></table></div>`;
         container.appendChild(div);
     });
 }
@@ -241,6 +248,104 @@ function renderizarFinanceiroSaripan() {
     });
     container.innerHTML = htmlFinal;
 }
+
+// ==========================================
+// NOVA FUNÇÃO: GERAR IMAGEM E COMPARTILHAR
+// ==========================================
+window.compartilharRelatorio = async (chaveGrupo) => {
+    const [ano, mes, q] = chaveGrupo.split('-').map(Number);
+    const itens = window.registros
+        .filter(r => r.ano === ano && r.mes === mes && r.quinzena === q)
+        .sort((a, b) => new Date(a.data) - new Date(b.data));
+    
+    if (itens.length === 0) return;
+
+    let cntNormal = 0;
+    let cntDupla = 0;
+    let totalDinheiro = 0;
+    let totalMult = 0;
+    let tbodyHtml = '';
+
+    // Montar os dados da tabela
+    itens.forEach(i => {
+        totalDinheiro += i.total;
+        totalMult += i.multiplicador;
+        
+        if (i.carga === 1) cntNormal++;
+        else cntDupla++;
+
+        const dataStr = i.data.split('-').reverse().join('/');
+        const tipo = i.carga === 1 ? 'Normal' : 'Dupla';
+        const detalhes = i.tipoDia === 1 ? 'Dia Útil' : (i.tipoDia === 2 ? 'Domingo' : 'Feriado');
+        const valorFmt = `R$ ${i.total.toFixed(2)}`;
+
+        tbodyHtml += `
+            <tr>
+                <td style="padding: 10px 12px; border: 1px solid #ddd; color: #333;">${dataStr}</td>
+                <td style="padding: 10px 12px; border: 1px solid #ddd; color: #333;">${tipo}</td>
+                <td style="padding: 10px 12px; border: 1px solid #ddd; color: #333;">${detalhes}</td>
+                <td style="padding: 10px 12px; border: 1px solid #ddd; color: #333;">${valorFmt}</td>
+            </tr>
+        `;
+    });
+
+    // Atualiza o molde invisível no HTML
+    document.getElementById('print-ref').innerText = `Referência: ${q}ª Quinzena de ${MESES[mes]} ${ano}`;
+    
+    let resumoText = '';
+    if(cntNormal > 0) resumoText += `- ${cntNormal} diária(s) normal<br>`;
+    if(cntDupla > 0) resumoText += `- ${cntDupla} diária(s) dupla<br>`;
+    document.getElementById('print-resumo').innerHTML = resumoText;
+    document.getElementById('print-total-diarias').innerText = `Total: ${totalMult} diárias a receber`;
+    document.getElementById('print-tbody').innerHTML = tbodyHtml;
+    document.getElementById('print-valor-total').innerText = `R$ ${totalDinheiro.toFixed(2)}`;
+
+    // Feedback visual
+    mostrarToast("Gerando imagem, aguarde...");
+
+    try {
+        // Tira a foto do molde usando html2canvas
+        const template = document.getElementById('print-template');
+        const canvas = await html2canvas(template, { 
+            scale: 2, // Garante alta resolução (qualidade de PDF)
+            backgroundColor: '#ffffff',
+            logging: false
+        });
+
+        // Converte o canvas para arquivo de imagem (Blob)
+        canvas.toBlob(async (blob) => {
+            const fileName = `Saripan_${MESES[mes]}_Q${q}_${ano}.png`;
+            const file = new File([blob], fileName, { type: 'image/png' });
+
+            // Tenta compartilhar nativamente via WhatsApp / Apps do celular
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Relatório Saripan',
+                        files: [file]
+                    });
+                } catch (err) {
+                    console.log("Compartilhamento cancelado", err);
+                }
+            } else {
+                // Plano B: Se estiver no PC ou navegador antigo, faz o download da imagem direto
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert("Seu dispositivo não suporta o atalho do WhatsApp. A imagem foi baixada.");
+            }
+        }, 'image/png');
+
+    } catch (e) {
+        console.error(e);
+        alert("Erro ao gerar a imagem.");
+    }
+};
 
 window.adicionarRegistroModular = async () => {
     const mesStr = document.getElementById('mesModular').value; 
@@ -323,25 +428,6 @@ function renderizarDashboardGeral() {
     });
     container.innerHTML = htmlFinal;
 }
-
-window.gerarPDF = (chaveGrupo) => {
-    const [ano, mes, q] = chaveGrupo.split('-').map(Number);
-    const itens = window.registros.filter(r => r.ano === ano && r.mes === mes && r.quinzena === q).sort((a, b) => new Date(a.data) - new Date(b.data));
-    if (itens.length === 0) return;
-    let cnt = { n: 0, d: 0, f: 0, dom: 0, fD: 0, domD: 0 };
-    let totalMult = 0, totalDinheiro = 0;
-    itens.forEach(i => {
-        totalMult += i.multiplicador; totalDinheiro += i.total;
-        if (i.carga === 1) { if (i.tipoDia === 1) cnt.n++; else if (i.tipoDia === 2) cnt.dom++; else if (i.tipoDia === 3) cnt.f++; }
-        else { if (i.tipoDia === 1) cnt.d++; else if (i.tipoDia === 2) cnt.domD++; else if (i.tipoDia === 3) cnt.fD++; }
-    });
-    const { jsPDF } = window.jspdf; const doc = new jsPDF();
-    doc.setFontSize(16); doc.setFont(undefined, 'bold'); doc.text("Relatório de Remuneração", 14, 20);
-    doc.setFontSize(12); doc.setFont(undefined, 'normal'); doc.text(`Referência: ${q}ª Q. ${MESES[mes]} ${ano}`, 14, 30);
-    const bodyData = itens.map(i => [ i.data.split('-').reverse().join('/'), i.carga === 1 ? 'Normal' : 'Dupla', i.tipoDia === 1 ? 'Útil' : 'Extra', `R$ ${i.total.toFixed(2)}` ]);
-    doc.autoTable({ startY: 40, head: [['Data', 'Carga', 'Tipo', 'Valor']], body: bodyData, theme: 'grid' });
-    doc.save(`Remun_JB_${MESES[mes]}_Q${q}.pdf`);
-};
 
 function definirDatasAtuais() {
     const d = new Date();
