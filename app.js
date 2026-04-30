@@ -408,8 +408,10 @@ function renderizarHistoricoExtra() {
 
     const div = document.createElement('div');
     div.className = 'accordion-group';
+    
+    // REMOVIDA A CLASSE 'active' do header E A CLASSE 'open' do content para nascer fechada!
     div.innerHTML = `
-        <div class="accordion-header active" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');" style="border-left: 5px solid #f57c00;">
+        <div class="accordion-header" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');" style="border-left: 5px solid #f57c00;">
             <div>
                 <div class="accordion-title">Todos os Registros</div>
                 <div class="accordion-meta">${regs.length} registro(s)</div>
@@ -418,7 +420,7 @@ function renderizarHistoricoExtra() {
                 <span style="font-weight:bold; color:#f57c00; font-size: 16px; margin-right: 10px;" class="esconder-valor">${totalFormatado}</span>
             </div>
         </div>
-        <div class="accordion-content open">
+        <div class="accordion-content">
             <table>
                 <thead>
                     <tr><th>Data</th><th>Origem</th><th style="text-align:right">Valor</th><th></th></tr>
