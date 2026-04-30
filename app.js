@@ -18,7 +18,7 @@ const auth = getAuth(appFire);
 
 window.registros = []; 
 window.registrosModular = []; 
-window.registrosExtra = []; // NOVA VARIÁVEL PARA AS RENDAS EXTRAS
+window.registrosExtra = []; 
 window.chartsAtivos = []; 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -90,7 +90,7 @@ function mostrarToast(mensagem = "✅ Operação realizada com sucesso!") {
     setTimeout(() => toast.className = toast.className.replace("show", ""), 2900);
 }
 
-// BUCANDO AS 3 TABELAS AGORA
+// BUCANDO AS 3 TABELAS
 async function carregarTodosOsDados() {
     try {
         const snapSari = await getDocs(collection(db, "apontamentos"));
@@ -347,7 +347,7 @@ function renderizarHistoricoModular() {
 }
 
 // ==========================================
-// NOVO MÓDULO: RENDA EXTRA AVULSA
+// MÓDULO: RENDA EXTRA AVULSA (SANFONA ÚNICA)
 // ==========================================
 window.adicionarRegistroExtra = async () => {
     const d = document.getElementById('dataExtra').value;
@@ -384,26 +384,52 @@ window.excluirRegistroExtra = async (id) => {
 function renderizarHistoricoExtra() {
     const container = document.getElementById('lista-extra-container');
     container.innerHTML = "";
-    
+
     const regs = [...window.registrosExtra].sort((a, b) => new Date(b.data) - new Date(a.data));
-    
-    if (regs.length === 0) { 
-        container.innerHTML = "<p style='text-align:center; font-size:13px; color:#999;'>Nenhuma renda extra registrada ainda.</p>"; 
-        return; 
+
+    if (regs.length === 0) {
+        container.innerHTML = "<p style='text-align:center; font-size:13px; color:#999;'>Nenhuma renda extra registrada ainda.</p>";
+        return;
     }
-    
-    let tableHtml = `<table><thead><tr><th>Data</th><th>Origem</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>`;
-    regs.forEach(r => {
+
+    let totalSoma = 0;
+    let htmlRows = regs.map(r => {
+        totalSoma += r.total;
         const dataFmt = r.data.split('-').reverse().join('/');
-        tableHtml += `<tr>
+        return `<tr>
             <td>${dataFmt}</td>
             <td>${r.descricao}</td>
-            <td class="esconder-valor" style="text-align:right; font-weight:bold; color:#f57c00;">R$ ${r.total.toFixed(2)}</td>
-            <td style="text-align:center;"><span style="color:red; cursor:pointer;" onclick="window.excluirRegistroExtra('${r.id}')">✖</span></td>
+            <td class="td-valor esconder-valor" style="color:#f57c00; font-weight:bold;">R$ ${r.total.toFixed(2)}</td>
+            <td class="td-acao" style="text-align:center;"><span style="color:red; cursor:pointer;" onclick="window.excluirRegistroExtra('${r.id}')">✖</span></td>
         </tr>`;
-    });
-    tableHtml += `</tbody></table>`;
-    container.innerHTML = tableHtml;
+    }).join('');
+
+    const totalFormatado = totalSoma.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+
+    const div = document.createElement('div');
+    div.className = 'accordion-group';
+    div.innerHTML = `
+        <div class="accordion-header active" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');" style="border-left: 5px solid #f57c00;">
+            <div>
+                <div class="accordion-title">Todos os Registros</div>
+                <div class="accordion-meta">${regs.length} registro(s)</div>
+            </div>
+            <div class="accordion-actions" style="display:flex; align-items:center;">
+                <span style="font-weight:bold; color:#f57c00; font-size: 16px; margin-right: 10px;" class="esconder-valor">${totalFormatado}</span>
+            </div>
+        </div>
+        <div class="accordion-content open">
+            <table>
+                <thead>
+                    <tr><th>Data</th><th>Origem</th><th style="text-align:right">Valor</th><th></th></tr>
+                </thead>
+                <tbody>
+                    ${htmlRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+    container.appendChild(div);
 }
 
 // ==========================================
